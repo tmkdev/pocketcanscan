@@ -7,6 +7,7 @@ import logging
 import sys
 import textwrap
 from collections import deque
+import itertools
 
 import can4python as can
 import RPi.GPIO as GPIO
@@ -22,6 +23,8 @@ joy_up = 6
 joy_down = 19
 GPIO.setup(joy_up, GPIO.IN, GPIO.PUD_UP)
 GPIO.setup(joy_down, GPIO.IN, GPIO.PUD_UP)
+GPIO.setup(joy_left, GPIO.IN, GPIO.PUD_UP)
+#GPIO.setup(joy_right, GPIO.IN, GPIO.PUD_UP)
 
 bus = can.CanBus.from_kcd_file(config['kcd'], config['canbus'])
 
@@ -84,6 +87,9 @@ class HS_Scan:
 
     def scan(self):
         curpos = 0
+        menu_iter = itertools.cycle(config['displays'].keys())
+
+        curmenu = next(menu_iter)
 
         while True:
 
@@ -97,10 +103,14 @@ class HS_Scan:
                 curpos+=1
                 time.sleep(0.2)
 
+            if not GPIO.input(joy_left):
+                curmenu = next(menu_iter)
+                time.sleep(0.2)
+
             received_signalvalues = bus.recv_next_signals()
             if received_signalvalues:
                 self.candata = { **self.candata, **received_signalvalues }
-                self.updateKPIs(config['displays']['dynamics'], curpos)
+                self.updateKPIs(config['displays'][curmenu], curpos)
 
     def updateKPIs(self, kpilist, curpos):
         wrapper = textwrap.TextWrapper(width=22)
