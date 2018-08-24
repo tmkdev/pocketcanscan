@@ -13,6 +13,7 @@ import can4python as can
 import RPi.GPIO as GPIO
 
 import config
+import utils
 
 config = config.loadconfig('config.yml')
 
@@ -86,6 +87,9 @@ class HS_Scan:
         "Destructor to make sure pygame shuts down, etc."
 
     def scan(self):
+        self.canhistory = utils.createhistory(config['displays']['all'])
+        wrapper = textwrap.TextWrapper(width=22)
+
         curpos = 0
         menu_iter = itertools.cycle(config['displays'].keys())
 
@@ -110,6 +114,10 @@ class HS_Scan:
             received_signalvalues = bus.recv_next_signals()
             if received_signalvalues:
                 self.candata = { **self.candata, **received_signalvalues }
+                for signal in received_signalvalues:
+                    if signal in self.canhistory:
+                        self.canhistory.append(received_signalvalues['signal'])
+
                 self.updateKPIs(config['displays'][curmenu], curpos)
 
     def updateKPIs(self, kpilist, curpos):
@@ -136,7 +144,7 @@ class HS_Scan:
                 break
 
         pygame.display.update()
-    
+
     def updateGraph(self, kpi):
         raise NotImplemented
 
