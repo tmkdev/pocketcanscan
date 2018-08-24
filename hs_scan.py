@@ -6,9 +6,14 @@ import random
 import logging
 import sys
 import textwrap
+from collections import deque
 
 import can4python as can
 import RPi.GPIO as GPIO
+
+import config
+
+config = config.loadconfig('config.yml')
 
 GPIO.setmode(GPIO.BCM)
 joy_left = 5
@@ -18,14 +23,19 @@ joy_down = 19
 GPIO.setup(joy_up, GPIO.IN, GPIO.PUD_UP)
 GPIO.setup(joy_down, GPIO.IN, GPIO.PUD_UP)
 
-canbus = sys.argv[1]
-
-bus = can.CanBus.from_kcd_file('gm_global_a_hs.kcd', canbus)
+bus = can.CanBus.from_kcd_file(config['kcd'], config['canbus'])
 
 os.environ["SDL_FBDEV"] = "/dev/fb1"
 
 class HS_Scan:
     screen = None;
+    fontcolor = (0, 255, 0)
+    white = (255, 255, 255)
+    black = (0,0,0)
+    red = (255,0,0)
+
+    candata = {}
+    canhistory = {}
 
     def __init__(self):
         "Ininitializes a new pygame screen using the framebuffer"
@@ -76,45 +86,51 @@ class HS_Scan:
         wrapper = textwrap.TextWrapper(width=22)
         curpos = 0
 
-        candata = {}
         while True:
-            red = (255, 0, 0)
-            white = (255, 255, 255)
-            black = (0,0,0)
 
             if not GPIO.input(joy_up):
                 curpos-=1
                 if curpos < 0:
                     curpos=0
-                time.sleep(0.2)
+                time.sleep(0.1)
 
             if not GPIO.input(joy_down):
                 curpos+=1
-                time.sleep(0.2)
+                time.sleep(0.1)
 
             received_signalvalues = bus.recv_next_signals()
             if received_signalvalues:
-                candata = { **candata, **received_signalvalues }
-                self.screen.fill(black)
-                currentline = 0
-                for sig in sorted(candata.keys())[curpos:]:
-                    sig_sub = sig.replace('_', ' ')
-                    sig_wrap = wrapper.wrap(sig_sub)
-                    for line in sig_wrap:
-                        text = self.font2.render(line.upper(), False, (0,255,0))
-                        self.screen.blit(text, (0,currentline*12))
-                        currentline+=1
-                    text = self.font.render(str(candata[sig]), False, white)
-                    self.screen.blit(text, (0,currentline*12))
-                    currentline +=1
+                self.candata = { self.candata, **received_signalvalues }
+                self.updateKPIs(config['displays']['engine'], candata, curpos)
 
-                    if currentline > 9:
-                        break
+    def updateKPIs(self, kpilist, curpos):
+        currentline = 0
+        self.screen.fill(black)
+ 
+        for sig in sorted(kpilist)[curpos:]:
+            sig_sub = sig.replace('_', ' ')
+            sig_wrap = wrapper.wrap(sig_sub)
+            for line in sig_wrap:
+                text = self.font2.render(line.upper(), False, self.fontcolor)
+                self.screen.blit(text, (0,currentline*12))
+                currentline+=1
+            try:
+                text = self.font.render(str(self.candata[sig]), False, self.white)
+            except:
+                text = self.font.render('N/A', False, self.red)
 
-                pygame.display.update()
+            self.screen.blit(text, (0,currentline*12))
+            currentline +=1
 
+            if currentline > 9:
+                break
 
-# Create an instance of the PyScope class
-scanner = HS_Scan()
-scanner.scan()
+        pygame.display.update()
+    
+    def updateGraph(self, kpi):
+        raise NotImplemented
+
+if __name__ == '__main__':
+    scanner = HS_Scan()
+    scanner.scan()
 
