@@ -75,8 +75,8 @@ class HS_Scan:
         # Render the screen
         pygame.mouse.set_visible(False)
 
-        self.font = pygame.font.Font('segoeui.ttf', 12)
-        self.font2 = pygame.font.Font('segoeui.ttf', 10)
+        self.font = pygame.font.Font('../segoeui.ttf', 12)
+        self.font2 = pygame.font.Font('../segoeui.ttf', 10)
 
         pygame.display.update()
 
@@ -84,9 +84,12 @@ class HS_Scan:
         "Destructor to make sure pygame shuts down, etc."
 
     def scan(self):
+<<<<<<< HEAD
         self.canhistory = utils.createhistory(config['displays']['all'])
 
         wrapper = textwrap.TextWrapper(width=22)
+=======
+>>>>>>> fcea55c385f82be65bcacdcd7f731f44cd49237a
         curpos = 0
 
         while True:
@@ -95,25 +98,26 @@ class HS_Scan:
                 curpos-=1
                 if curpos < 0:
                     curpos=0
-                time.sleep(0.1)
+                time.sleep(0.2)
 
             if not GPIO.input(joy_down):
                 curpos+=1
-                time.sleep(0.1)
+                time.sleep(0.2)
 
             received_signalvalues = bus.recv_next_signals()
             if received_signalvalues:
-                self.candata = { self.candata, **received_signalvalues }
+                self.candata = { **self.candata, **received_signalvalues }
                 for signal in received_signalvalues:
                     if signal in self.canhistory:
                         self.canhistory.append(received_signalvalues['signal'])
 
-                self.updateKPIs(config['displays']['engine'], candata, curpos)
-
+                self.updateKPIs(config['displays']['dynamics'], curpos)
+                
     def updateKPIs(self, kpilist, curpos):
+        wrapper = textwrap.TextWrapper(width=22)
         currentline = 0
-        self.screen.fill(black)
- 
+        self.screen.fill(self.black)
+
         for sig in sorted(kpilist)[curpos:]:
             sig_sub = sig.replace('_', ' ')
             sig_wrap = wrapper.wrap(sig_sub)
